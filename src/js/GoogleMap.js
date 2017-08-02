@@ -7,15 +7,15 @@ class GoogleMap extends React.Component {
 
         this.state = {
             markers: [],
-        }
+        };
     }
 
     componentDidMount() {
         const { properties, activeProperty } = this.props;
-        const { latitude, longitude} = activeProperty;
+        const { latitude, longitude } = activeProperty;
 
         this.map = new google.maps.Map(this.refs.map, {
-            center: {lat: latitude, lng: longitude},
+            center: { lat: latitude, lng: longitude },
             zoom: 15,
             mapTypeControl: false,
         });
@@ -29,15 +29,41 @@ class GoogleMap extends React.Component {
     }
 
     componentWillReceiveProps(nextProps) {
-        const { activeProperty } = nextProps;
-        const { latitude, longitude, index } = activeProperty;
-        const { markers } = this.state;
+        const { activeProperty, filteredProperties, isFiltering } = nextProps;
+        const { index } = activeProperty;
 
         // Hide all the other info boxes
         this.hideAll();
 
         // SHow info window of new active property
-         this.showInfoWindow(index);
+        if (isFiltering && filteredProperties.length === 0) {
+            this.hideAll();
+        } else {
+            this.hideAll();
+            this.showInfoWindow(index);
+        }
+    }
+
+    componentDidUpdate() {
+        const { filteredProperties, isFiltering } = this.props;
+        const { markers } = this.state;
+
+        markers.forEach((marker) => {
+            const { property } = marker; // Return associated property
+
+            if (isFiltering) {
+                // show markers of filtered properties and hide other markers
+                if (filteredProperties.includes(property)) {
+                    markers[property.index].setVisible(true);
+                } else {
+                    // Hide all the other markers
+                    markers[property.index].setVisible(false);
+                }
+            } else {
+                // show all markers
+                markers[property.index].setVisible(true);
+            }
+        });
     }
 
     createMarkers(properties) {
@@ -45,11 +71,10 @@ class GoogleMap extends React.Component {
         const activePropertyIndex = activeProperty.index;
         const { markers } = this.state;
 
-        properties.map(property => {
-
+        properties.map((property) => {
             const { latitude, longitude, index, address } = property;
             const iw = new google.maps.InfoWindow({
-                content: `<h1>${address}</h1>`
+                content: `<h1>${address}</h1>`,
             });
 
             this.marker = new google.maps.Marker({
@@ -57,7 +82,7 @@ class GoogleMap extends React.Component {
                 map: this.map,
                 label: {
                     color: '#fff',
-                    text: `${index+1}`
+                    text: `${index + 1}`,
                 },
                 icon: {
                     url: 'https://ihatetomatoes.net/react-tutorials/google-maps/images/img_map-marker.png',
@@ -66,7 +91,8 @@ class GoogleMap extends React.Component {
                     origin: new google.maps.Point(0, -15),
                     // The anchor for this image is the base of the cross at (11, 52).
                     anchor: new google.maps.Point(11, 52),
-                }
+                },
+                property,
             });
 
             this.marker.iw = iw;
@@ -87,23 +113,28 @@ class GoogleMap extends React.Component {
 
     hideAll() {
         const { markers } = this.state;
-         markers.forEach(marker => {
+
+        markers.forEach((marker) => {
             marker.iw.close();
         });
     }
 
     render() {
-        return(
+        return (
             <div className="mapContainer">
                 <div id="map" ref="map"></div>
             </div>
-        )
+        );
     }
 }
 
 GoogleMap.propTypes = {
     properties: PropTypes.array.isRequired,
     setActiveProperty: PropTypes.func.isRequired,
-}
+    activeProperty: PropTypes.object.isRequired,
+    filteredProperties: PropTypes.array,
+    isFiltering: PropTypes.bool.isRequired,
+
+};
 
 export default GoogleMap;

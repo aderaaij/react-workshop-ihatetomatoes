@@ -1,14 +1,15 @@
 import React from 'react';
+import jump from 'jump.js';
 import Card from './Card';
 import data from './data/Data';
 import GoogleMap from './GoogleMap';
 import Header from './Header';
-import jump from 'jump.js';
 import { easeInOutCubic } from './utils/Easing';
+import image from '../images/location-map.svg';
 
 class App extends React.Component {
 
-    constructor(props){
+    constructor(props) {
         super(props);
 
         this.state = {
@@ -16,12 +17,18 @@ class App extends React.Component {
             activeProperty: data.properties[0],
             filterIsVisible: false,
             filterBedrooms: 'any',
+            filterBathrooms: 'any',
+            filterCars: 'any',
+            filterSort: 'any',
             filteredProperties: [],
+            priceFrom: '500000',
+            priceTo: '1000000',
             isFiltering: false,
-        }
+        };
 
         this.setActiveProperty = this.setActiveProperty.bind(this);
         this.toggleFilter = this.toggleFilter.bind(this);
+        this.clearFilter = this.clearFilter.bind(this);
         this.filterProperties = this.filterProperties.bind(this);
         this.handleFilterChange = this.handleFilterChange.bind(this);
     }
@@ -32,47 +39,94 @@ class App extends React.Component {
         // console.log(`${value} ${name}`)
         this.setState({
             [name]: value,
-        }, function() {
+        }, function () {
             this.filterProperties();
         });
     }
 
     filterProperties() {
-        const { properties, filterBedrooms } = this.state;
-        const isFiltering = filterBedrooms !== 'any';
+        const {
+            properties,
+            filterBedrooms,
+            filterBathrooms,
+            filterCars,
+            filterSort,
+            priceFrom,
+            priceTo,
+        } = this.state;
+        const isFiltering =
+            filterBedrooms !== 'any' ||
+            filterBathrooms !== 'any' ||
+            filterCars !== 'any' ||
+            filterSort !== 'any' ||
+            priceFrom !== '0' ||
+            priceTo !== '1000001';
 
         const getFilteredProperties = (properties) => {
-
             const filteredProperties = [];
-            properties.map(property => {
-                const { bedrooms } = property;
-                console.log(parseInt(filterBedrooms));
-                const match = bedrooms === parseInt(filterBedrooms) || filterBedrooms === 'any';
+
+            properties.map((property) => {
+                const { bedrooms, bathrooms, carSpaces, price } = property;
+                const match =
+                    (bedrooms === parseInt(filterBedrooms) || filterBedrooms === 'any') &&
+                    (bathrooms === parseInt(filterBathrooms) || filterBathrooms === 'any') &&
+                    (carSpaces === parseInt(filterCars) || filterCars === 'any') &&
+                    (price >= priceFrom && price <= priceTo);
+
 
                 // If the match is true, push to filteredProperties array
                 match && filteredProperties.push(property);
-            })
+            });
 
+            switch (filterSort) {
+            case '0':
+                console.log('test');
+                filteredProperties.sort((a, b) => a.price - b.price);
+                break;
+            case '1':
+                console.log('test2');
+                filteredProperties.sort((a, b) => b.price - a.price);
+                break;
+            default:
+                break;
+            }
             return filteredProperties;
-
         };
 
         this.setState({
             filteredProperties: getFilteredProperties(properties),
-            isFiltering
+            activeProperty: getFilteredProperties(properties)[0] || properties[0],
+            isFiltering,
         });
     }
 
-    toggleFilter(e)  {
+    toggleFilter(e) {
         e.preventDefault();
         this.setState({
             filterIsVisible: !this.state.filterIsVisible,
         });
     }
 
+    clearFilter(e, form) {
+        e.preventDefault();
+        this.setState({
+            properties: this.state.properties.sort((a, b) => a.index - b.index),
+            filterBedrooms: 'any',
+            filterBathrooms: 'any',
+            filterCars: 'any',
+            filterSort: 'any',
+            filteredProperties: [],
+            isFiltering: false,
+            priceFrom: '500000',
+            priceTo: '1000000',
+            activeProperty: this.state.properties[0],
+        });
+        form.reset();
+    }
+
     setActiveProperty(property, scroll) {
         this.setState({
-            activeProperty: property
+            activeProperty: property,
         });
 
         const { index } = property;
@@ -85,51 +139,53 @@ class App extends React.Component {
                 easing: easeInOutCubic,
             });
         }
-
-
     }
 
-    render(){
-        const { properties, activeProperty, filterIsVisible } = this.state;
+    render() {
+        const {
+            properties,
+            activeProperty,
+            filterIsVisible,
+            filteredProperties,
+            isFiltering,
+        } = this.state;
+        const propertiesList = isFiltering ? filteredProperties : properties;
+
         return (
             <div>
-                {/* listings - Start */}
                 <div className="listings">
-
-                    {/* Header - Start - add .filter-is-visible to show filter*/}
                     <Header
                         filterIsVisible={ filterIsVisible }
                         toggleFilter={ this.toggleFilter }
                         handleFilterChange={ this.handleFilterChange }
+                        clearFilter={ this.clearFilter }
                     />
-                    {/* Header - End */}
 
                     <div className="cards container">
-                        <div className="cards-list row ">
+                        <div className={ `cards-list row ${propertiesList.length === 0 ? 'is-empty' : ''}`}>
                         {
-                            properties.map(property => {
-                                return <Card
+                            propertiesList.map(property => <Card
                                             key={ property._id }
                                             property={ property }
                                             activeProperty={ activeProperty }
                                             setActiveProperty={ this.setActiveProperty }
-                                        />
-                            })
+                                        />)
+                        }
+                        {
+                            (isFiltering && propertiesList.length === 0) && <p className="warning"><img src={ image } alt=""/><br/>No properties were found</p>
                         }
                         </div>
                     </div>
                 </div>
-                {/* listings - End */}
-
-                {/* mapContainer - Start  */}
                 <GoogleMap
                     properties={ properties }
                     activeProperty={ activeProperty }
                     setActiveProperty={ this.setActiveProperty }
+                    filteredProperties={ filteredProperties }
+                    isFiltering={ isFiltering }
                 />
-                {/* mapContainer - End */}
             </div>
-        )
+        );
     }
 }
 
